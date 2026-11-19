@@ -45,6 +45,7 @@ def allowed_programs(os_name: str) -> dict[str, list[str]]:
     if os_name == "macos":
         return {
             "ping": ["/sbin/ping"],
+            "ping6": ["/sbin/ping6"],
             "traceroute": ["/usr/sbin/traceroute"],
             "nslookup": ["/usr/bin/nslookup"],
         }

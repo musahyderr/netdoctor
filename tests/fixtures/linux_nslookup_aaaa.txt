@@ -1,0 +1,7 @@
+Server:		1.1.1.1
+Address:	1.1.1.1#53
+
+Non-authoritative answer:
+example.com	has AAAA address 2606:4700:10::6814:179a
+example.com	has AAAA address 2606:4700:10::ac42:93f3
+

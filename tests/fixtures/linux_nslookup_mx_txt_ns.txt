@@ -1,0 +1,12 @@
+Server:		1.1.1.1
+Address:	1.1.1.1#53
+
+Non-authoritative answer:
+gmail.com	mail exchanger = 5 gmail-smtp-in.l.google.com.
+gmail.com	mail exchanger = 10 alt1.gmail-smtp-in.l.google.com.
+gmail.com	text = "v=spf1 redirect=_spf.google.com"
+gmail.com	nameserver = ns1.google.com.
+www.example.org	canonical name = example.org.
+
+Authoritative answers can be found from:
+

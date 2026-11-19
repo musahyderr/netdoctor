@@ -87,7 +87,7 @@ def test_runner_rejects_programs_not_on_allowlist():
 @pytest.mark.parametrize("os_name", ["windows", "macos", "linux"])
 def test_allowlist_is_small_and_absolute(os_name):
     progs = runner.allowed_programs(os_name)
-    assert set(progs) <= {"ping", "tracert", "traceroute", "tracepath", "nslookup"}
+    assert set(progs) <= {"ping", "ping6", "tracert", "traceroute", "tracepath", "nslookup"}
     for paths in progs.values():
         for path in paths:
             assert path.startswith("/") or path[1:3] == ":\\", path
