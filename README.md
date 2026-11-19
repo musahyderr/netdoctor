@@ -69,7 +69,7 @@ You need Python 3.10+ and [uv](https://docs.astral.sh/uv/) (for `uvx`).
 **Claude Code** (one line):
 
 ```bash
-claude mcp add netdoctor -- uvx netdoctor-mcp
+claude mcp add netdoctor -- uvx --from git+https://github.com/musahyderr/netdoctor@v0.1.0 netdoctor-mcp
 ```
 
 **Claude Desktop**: add this to `claude_desktop_config.json` (Settings → Developer → Edit Config), then restart Claude Desktop:
@@ -79,7 +79,7 @@ claude mcp add netdoctor -- uvx netdoctor-mcp
   "mcpServers": {
     "netdoctor": {
       "command": "uvx",
-      "args": ["netdoctor-mcp"]
+      "args": ["--from", "git+https://github.com/musahyderr/netdoctor@v0.1.0", "netdoctor-mcp"]
     }
   }
 }
@@ -88,21 +88,16 @@ claude mcp add netdoctor -- uvx netdoctor-mcp
 **Without uv** (using pipx):
 
 ```bash
-pipx install netdoctor-mcp
+pipx install git+https://github.com/musahyderr/netdoctor@v0.1.0
 ```
 
 ```bash
 claude mcp add netdoctor -- netdoctor-mcp
 ```
 
-The package is [`netdoctor-mcp` on PyPI](https://pypi.org/project/netdoctor-mcp/) (the
-name `netdoctor` there belongs to an unrelated project). netdoctor is also listed in the
-[official MCP Registry](https://registry.modelcontextprotocol.io) as
-`io.github.musahyderr/netdoctor`. Every release is built and published by
-[GitHub Actions](.github/workflows/release.yml) from a tagged commit, using PyPI trusted
-publishing (no stored tokens).
-
-<!-- mcp-name: io.github.musahyderr/netdoctor -->
+`@v0.1.0` pins the exact tagged release, so what you install never changes underneath you.
+Each release is built by [GitHub Actions](.github/workflows/release.yml) from its tag, and
+the built package is attached to the [GitHub release](https://github.com/musahyderr/netdoctor/releases).
 
 ## Tools
 
