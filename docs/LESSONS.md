@@ -41,3 +41,8 @@ One entry per surprise or real bug: what happened, root cause, fix, and the rule
 - **What happened:** `netdoctor` on PyPI belongs to an unrelated network-debugging tool, discovered only at publish time.
 - **Fix:** publish as `netdoctor-mcp` (repo, import name and `netdoctor` command unchanged; added a `netdoctor-mcp` command so `uvx netdoctor-mcp` works).
 - **Rule:** check the package-registry name (`https://pypi.org/pypi/<name>/json` returns 404 when free) before naming a project.
+
+## 2026-11-19: PyPI publishing dropped for v0.1
+- **What happened:** PyPI now requires an account with two-factor authentication before a trusted publisher can be added; the owner chose not to set that up.
+- **Fix:** releases are GitHub-only: install from a pinned tag (`git+https://github.com/musahyderr/netdoctor@v0.1.0`), and the release workflow attaches the built package and SHA-256 sums to a GitHub release. The MCP Registry needs a package registry such as PyPI, so netdoctor is not listed there.
+- **Rule:** before building a publishing pipeline, confirm which accounts and steps the owner is willing to do themselves.
