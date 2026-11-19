@@ -24,3 +24,9 @@ One entry per surprise or real bug: what happened, root cause, fix, and the rule
 - **What happened:** captured `tracert` output for fixtures held the developer's home router and ISP-internal IPs.
 - **Fix:** replaced them with documentation ranges (192.168.1.1, 10.0.0.1, 198.51.100.0/24, 203.0.113.0/24) before committing.
 - **Rule:** sanitise every captured fixture before it goes into a public repo.
+
+## 2026-11-19: new repo picked up a personal email as commit author
+- **What happened:** the first commits used the machine's global git email (a personal address), unlike the owner's other public repos.
+- **Root cause:** `git init` inherits the global `user.email`; the other repos set a GitHub noreply address locally.
+- **Fix:** set the noreply address in this repo's config and rewrote the unpushed commits with `--reset-author`.
+- **Rule:** before the first push of a public repo, check `git log --format='%an <%ae>'`.
