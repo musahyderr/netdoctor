@@ -105,8 +105,9 @@ def _summary(host: str, r: dict, timed_out: bool) -> str:
         )
     silent = [h["hop"] for h in hops if h["avg_ms"] is None]
     if silent:
+        label = "Hop" if len(silent) == 1 else "Hops"
         parts.append(
-            f"Hops {', '.join(map(str, silent))} did not answer; routers often skip "
+            f"{label} {', '.join(map(str, silent))} did not answer; routers often skip "
             "these replies, which is normal if later hops respond."
         )
     timed = [h for h in hops if h["avg_ms"] is not None]

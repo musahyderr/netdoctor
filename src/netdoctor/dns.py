@@ -53,8 +53,12 @@ def parse(
         result["answers"] = answers
         result["status"] = "ok"
         slow = elapsed_ms > 500
+        shown = [
+            f"{a['exchange']} (pref {a['preference']})" if isinstance(a, dict) else str(a)
+            for a in answers[:5]
+        ]
         result["summary"] = (
-            f"{name} resolved ({record_type}) to {', '.join(map(str, answers[:5]))}"
+            f"{name} resolved ({record_type}) to {', '.join(shown)}"
             + (" and more" if len(answers) > 5 else "")
             + f" in {round(elapsed_ms)} ms"
             + (" — slow; a lookup normally takes under 100 ms." if slow else ".")

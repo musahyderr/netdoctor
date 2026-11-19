@@ -95,6 +95,7 @@ def test_dns_windows_mx_sorted_by_preference():
     r = dns.parse("gmail.com", "MX", fx("windows_nslookup_mx.txt"), "", 30)
     assert [a["preference"] for a in r["answers"]] == [5, 10, 20, 30, 40]
     assert r["answers"][0]["exchange"] == "gmail-smtp-in.l.google.com"
+    assert "gmail-smtp-in.l.google.com (pref 5)" in r["summary"] and "{" not in r["summary"]
 
 
 @pytest.mark.parametrize(
