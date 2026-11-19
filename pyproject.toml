@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "netdoctor"
+version = "0.1.0"
+description = "A read-only, local-only MCP server that lets Claude diagnose slow or broken internet."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Syed Musa Hyder" }]
+requires-python = ">=3.10"
+dependencies = ["mcp>=2.3,<3"]
+keywords = ["mcp", "claude", "network", "diagnostics", "ping", "dns", "traceroute"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Topic :: System :: Networking :: Monitoring",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+netdoctor = "netdoctor.server:main"
+
+[project.urls]
+Homepage = "https://github.com/musahyderr/netdoctor"
+Issues = "https://github.com/musahyderr/netdoctor/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/netdoctor"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
