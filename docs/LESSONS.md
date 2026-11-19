@@ -36,3 +36,8 @@ One entry per surprise or real bug: what happened, root cause, fix, and the rule
 - **Root cause:** validating the *text* of a host, and rate-limiting on that text, instead of on what it resolves to.
 - **Fix:** last label must start with a letter and be 2+ characters; ASCII only; `%` rejected; IPv4-mapped IPv6 unwrapped; `check_port` resolves first, refuses broadcast/multicast results, keys limits on the resolved IP and connects to one address; caps on distinct hosts (10 per 10 min) and concurrent checks (2).
 - **Rule:** enforce safety limits on the resolved target, never on user-supplied spelling. Get a second reviewer to attack the validator before release.
+
+## 2026-11-19: the PyPI name was already taken
+- **What happened:** `netdoctor` on PyPI belongs to an unrelated network-debugging tool, discovered only at publish time.
+- **Fix:** publish as `netdoctor-mcp` (repo, import name and `netdoctor` command unchanged; added a `netdoctor-mcp` command so `uvx netdoctor-mcp` works).
+- **Rule:** check the package-registry name (`https://pypi.org/pypi/<name>/json` returns 404 when free) before naming a project.

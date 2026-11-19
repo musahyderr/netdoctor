@@ -21,7 +21,7 @@ Report privately through GitHub:
 (the repository's Security tab → "Report a vulnerability").
 
 Please include what you did, what happened, your OS and Python version, and the netdoctor
-version (`pip show netdoctor`).
+version (`pip show netdoctor-mcp`).
 
 ## What to expect
 
