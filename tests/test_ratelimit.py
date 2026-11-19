@@ -24,6 +24,11 @@ def limiter(clock):
     return RateLimiter(clock=clock)
 
 
+def port_check(limiter, ip, port):
+    limiter.acquire("check_port")
+    limiter.acquire_port(ip, port)
+
+
 def test_min_interval_between_calls(limiter, clock):
     limiter.acquire("ping")
     with pytest.raises(RateLimited) as err:
@@ -53,35 +58,38 @@ def test_per_minute_cap(limiter, clock):
 
 
 def test_port_checks_per_minute(limiter, clock):
-    hosts = [f"host{i}.example" for i in range(11)]
-    for host in hosts[:10]:
-        limiter.acquire("check_port", host, 443)
+    for i in range(10):
+        port_check(limiter, f"203.0.113.{i + 1}", 443)
         clock.advance(1.0)
     with pytest.raises(RateLimited, match="port checks per minute"):
-        limiter.acquire("check_port", hosts[10], 443)
+        limiter.acquire_port("198.51.100.1", 443)
 
 
 def test_blocks_port_scanning_one_host(limiter, clock):
     for port in (22, 80, 443, 3389, 8080):
-        limiter.acquire("check_port", "example.com", port)
+        port_check(limiter, "203.0.113.5", port)
         clock.advance(7.0)
     with pytest.raises(RateLimited, match="not a port scanner"):
-        limiter.acquire("check_port", "example.com", 21)
+        limiter.acquire_port("203.0.113.5", 21)
     # re-checking a port already checked is fine
-    limiter.acquire("check_port", "example.com", 443)
+    limiter.acquire_port("203.0.113.5", 443)
     clock.advance(7.0)
     # a different host is unaffected
-    limiter.acquire("check_port", "example.org", 21)
+    limiter.acquire_port("203.0.113.6", 21)
+
+
+def test_blocks_sweeping_many_hosts(limiter, clock):
+    for i in range(10):
+        port_check(limiter, f"192.168.1.{i + 1}", 22)
+        clock.advance(7.0)
+    with pytest.raises(RateLimited, match="not a network scanner"):
+        limiter.acquire_port("192.168.1.11", 22)
+    limiter.acquire_port("192.168.1.1", 22)  # a host already checked is fine
 
 
 def test_scan_window_expires(limiter, clock):
     for port in (1, 2, 3, 4, 5):
-        limiter.acquire("check_port", "example.com", port)
+        port_check(limiter, "203.0.113.5", port)
         clock.advance(7.0)
     clock.advance(600.0)
-    limiter.acquire("check_port", "example.com", 6)
-
-
-def test_check_port_requires_host_and_port(limiter):
-    with pytest.raises(ValueError):
-        limiter.acquire("check_port")
+    limiter.acquire_port("203.0.113.5", 6)

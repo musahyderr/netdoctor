@@ -59,12 +59,39 @@ def test_rate_limit_is_enforced_end_to_end(calls):
     assert len(calls) == 1
 
 
-def test_port_scan_blocked_end_to_end(doctor, monkeypatch):
-    monkeypatch.setattr(server.port, "check", lambda h, p: {"host": h, "port": p, "status": "closed"})
-    for p in (21, 22, 23, 25, 80):
-        assert doctor.check_port("example.com", p)["ok"] is True
-    r = doctor.check_port("example.com", 443)
+def test_port_scan_blocked_end_to_end_across_spellings(doctor, monkeypatch):
+    # Every spelling of the machine resolves to the same IP, so they share one budget.
+    monkeypatch.setattr(
+        server.port, "resolve",
+        lambda h, p: server.port.Target("203.0.113.5", 2, ("203.0.113.5", p)),
+    )
+    monkeypatch.setattr(server.port, "check", lambda h, p, t: {"host": h, "port": p, "status": "closed"})
+    spellings = ["example.com", "www.example.com", "203.0.113.5", "::ffff:203.0.113.5", "alias.example"]
+    for name, p in zip(spellings, (21, 22, 23, 25, 80)):
+        assert doctor.check_port(name, p)["ok"] is True
+    r = doctor.check_port("other-name.example", 443)
     assert r["ok"] is False and "not a port scanner" in r["error"]
+
+
+def test_concurrent_checks_are_capped(doctor, calls):
+    doctor._slots.acquire()
+    doctor._slots.acquire()
+    r = doctor.ping("1.1.1.1")
+    assert r["ok"] is False and "already running" in r["error"]
+    assert calls == []
+    doctor._slots.release()
+    doctor._slots.release()
+    assert doctor.ping("1.1.1.1")["ok"] is True
+
+
+def test_unexpected_value_error_is_reported_not_raised(doctor, monkeypatch):
+    def boom(*a, **k):
+        raise ValueError("arguments must not contain control characters")
+
+    monkeypatch.setattr(runner, "run", boom)
+    monkeypatch.setattr(runner, "current_os", lambda: "windows")
+    r = doctor.ping("1.1.1.1")
+    assert r["ok"] is False and "control characters" in r["error"]
 
 
 def test_dns_and_trace_commands(doctor, calls):

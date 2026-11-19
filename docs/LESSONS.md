@@ -30,3 +30,9 @@ One entry per surprise or real bug: what happened, root cause, fix, and the rule
 - **Root cause:** `git init` inherits the global `user.email`; the other repos set a GitHub noreply address locally.
 - **Fix:** set the noreply address in this repo's config and rewrote the unpushed commits with `--reset-author`.
 - **Rule:** before the first push of a public repo, check `git log --format='%an <%ae>'`.
+
+## 2026-11-19: security review found validation and rate-limit bypasses
+- **What happened:** an independent review showed `0xffffffff`, `0x7f.0x1` and `127.1.a` passed as "hostnames" (resolvers read them as broadcast/loopback), IPv6 zone IDs like `fe80::1%-h` were accepted, the per-host port cap was keyed on the spelling (so `127.0.0.1`, `::ffff:127.0.0.1` and `localhost` each had their own budget), and up to ~20 checks could run at once.
+- **Root cause:** validating the *text* of a host, and rate-limiting on that text, instead of on what it resolves to.
+- **Fix:** last label must start with a letter and be 2+ characters; ASCII only; `%` rejected; IPv4-mapped IPv6 unwrapped; `check_port` resolves first, refuses broadcast/multicast results, keys limits on the resolved IP and connects to one address; caps on distinct hosts (10 per 10 min) and concurrent checks (2).
+- **Rule:** enforce safety limits on the resolved target, never on user-supplied spelling. Get a second reviewer to attack the validator before release.

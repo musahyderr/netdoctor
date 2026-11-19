@@ -11,6 +11,7 @@ import re
 
 MAX_HOST_LENGTH = 253
 _LABEL = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)$")
+_TLD = re.compile(r"^[A-Za-z][A-Za-z0-9-]*$")
 
 DNS_RECORD_TYPES = ("A", "AAAA", "CNAME", "MX", "NS", "TXT")
 
@@ -35,28 +36,43 @@ def validate_host(value: object) -> str:
         raise ValidationError("host is too long")
     if host.startswith("-"):
         raise ValidationError("host must not start with '-'")
-    if any(ch in host for ch in " \t\r\n,;/*?|&<>()[]{}'\"`$\\!"):
+    if not host.isascii() or not host.isprintable():
+        raise ValidationError("host must be plain ASCII (use the punycode form for international names)")
+    if any(ch in host for ch in " \t\r\n,;/*?|&<>()[]{}'\"`$\\!%#@=+~^"):
         raise ValidationError(
             "host must be exactly one hostname or IP address "
-            "(no lists, ranges, CIDR blocks or wildcards)"
+            "(no lists, ranges, CIDR blocks, wildcards or IPv6 zone IDs)"
         )
 
     ip = _parse_ip(host)
     if ip is not None:
-        _reject_mass_address(ip)
+        ip = normalize_ip(ip)
+        reject_mass_address(ip)
         return str(ip)
 
     if ":" in host:
         raise ValidationError("not a valid IP address or hostname")
     name = host[:-1] if host.endswith(".") else host
     labels = name.split(".")
-    if not any(ch.isalpha() for ch in labels[-1]):
-        # Looks numeric but did not parse as an IP: e.g. 10.0.0.1-50 or 999.1.1.1.
-        # Real top-level domains always contain a letter.
-        raise ValidationError("not a valid IP address (ranges are not allowed)")
     if not all(_LABEL.match(label) for label in labels):
         raise ValidationError("not a valid hostname")
+    if not _TLD.match(labels[-1]) or (len(labels) > 1 and len(labels[-1]) < 2):
+        # Blocks numeric shorthand that system resolvers read as IP addresses
+        # (0xffffffff, 0x7f.0x1, 127.1, 1e3, 10.0.0.1-50 ...). Real top-level
+        # domains start with a letter and are at least two characters long.
+        raise ValidationError(
+            "not a valid hostname or IP address (numeric shorthand and ranges are not allowed)"
+        )
     return name.lower()
+
+
+def normalize_ip(
+    ip: ipaddress.IPv4Address | ipaddress.IPv6Address,
+) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
+    """Unwrap IPv4-mapped IPv6 (::ffff:1.2.3.4) so one machine has one spelling."""
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        return ip.ipv4_mapped
+    return ip
 
 
 def _parse_ip(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
@@ -66,7 +82,9 @@ def _parse_ip(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None
         return None
 
 
-def _reject_mass_address(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> None:
+def reject_mass_address(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> None:
+    """Refuse addresses that reach many machines at once."""
+    ip = normalize_ip(ip)
     if ip.is_multicast:
         raise ValidationError("multicast addresses are not allowed")
     if ip.is_unspecified:

@@ -30,18 +30,21 @@ Claude: (pings your router, then 1.1.1.1, looks up a name, traces the route)
 | **Sends nothing anywhere** | No telemetry, no analytics, no update checks, no server owned by this project. The only traffic is the check you asked for. Results go only to your own Claude session. A test fails the build if any web or HTTP library is imported. |
 | **Read-only** | It never changes settings, installs anything or writes files. It has no "fix it" features: no DNS changes, no adapter resets. |
 | **No admin rights** | Every check works as a normal user. |
-| **Not a scanning tool** | `check_port` takes exactly one host and one port. Ranges, lists and CIDR blocks are rejected. One host can be asked about at most 5 different ports every 10 minutes. |
-| **Can't flood** | All tools are rate-limited: at least 1 second between checks, at most 20 a minute, port checks at most 10 a minute. `ping` sends at most 10 packets. |
-| **Can't run other commands** | Only the programs listed below can run, from fixed system folders (never from `PATH`), with fixed arguments and `shell=False`. Inputs that start with `-` (command options) are rejected. Tests check all of this. |
+| **Not a scanning tool** | `check_port` takes exactly one host and one port. Ranges, lists and CIDR blocks are rejected. In any 10 minutes it will check at most 5 different ports on one machine and at most 10 different machines. Limits are counted per resolved IP address, so other spellings of the same machine share its budget. |
+| **Can't flood** | All tools are rate-limited: at least 1 second between checks, at most 20 a minute, port checks at most 10 a minute, and never more than 2 checks running at once. `ping` sends at most 10 packets. Broadcast, multicast and numeric shorthand such as `0xffffffff` are refused. |
+| **Can't run other commands** | Only the programs listed below can run, from fixed system folders (never from `PATH`), with fixed arguments and `shell=False`. Inputs that start with `-` (command options), non-ASCII names and IPv6 zone IDs are rejected. Tests check all of this. |
+
+Private and loopback addresses (like your router at `192.168.1.1`) are allowed on purpose:
+checking them is often the first step in finding a home network problem.
 
 ### Why it is not a port scanner
 
 Port scanning means knocking on many doors to see which ones open. Network owners treat
 it as a sign of attack, and it can get you blocked or in trouble. netdoctor only answers
 "can I reach *this one* service?" (for example, "is port 443 on my website reachable?").
-It opens one normal TCP connection, the same as a browser does, closes it at once and
-sends no data. The rate limiter refuses requests that look like a scan, so it can't be
-turned into one, even by mistake.
+It looks up the name, opens one normal TCP connection to one address, the same as a
+browser does, closes it at once and sends no data. The rate limiter refuses requests that
+look like a scan, so it can't be turned into one, even by mistake.
 
 ## Every command netdoctor can run
 

@@ -7,6 +7,7 @@ Claude session that asked.
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any
 
@@ -33,6 +34,8 @@ service (e.g. port 443 on a website) can be reached. Calls are rate-limited
 (1 per second, 20 per minute), so plan checks rather than retrying in a loop.
 Never use check_port to look for open ports: it allows only a few ports per host."""
 
+MAX_CONCURRENT = 2  # never more than two checks (child processes) at once
+
 READ_ONLY = ToolAnnotations(
     read_only_hint=True,
     destructive_hint=False,
@@ -46,6 +49,7 @@ class Doctor:
 
     def __init__(self, limiter: RateLimiter | None = None):
         self.limiter = limiter or RateLimiter()
+        self._slots = threading.BoundedSemaphore(MAX_CONCURRENT)
 
     def ping(self, host: str, count: int = 4) -> dict[str, Any]:
         return self._guard(self._ping, host, count)
@@ -62,6 +66,12 @@ class Doctor:
     # --- internals ---
 
     def _guard(self, fn, *args) -> dict[str, Any]:
+        if not self._slots.acquire(blocking=False):
+            return {
+                "ok": False,
+                "error": f"{MAX_CONCURRENT} checks are already running; wait for them to finish.",
+                "retry_after_s": 2.0,
+            }
         try:
             result = fn(*args)
         except ValidationError as exc:
@@ -70,6 +80,10 @@ class Doctor:
             return {"ok": False, "error": str(exc), "retry_after_s": round(exc.retry_after, 1)}
         except runner.ProgramNotFound as exc:
             return {"ok": False, "error": str(exc)}
+        except (ValueError, TypeError) as exc:
+            return {"ok": False, "error": f"Rejected input: {exc}"}
+        finally:
+            self._slots.release()
         return {"ok": True, **result}
 
     def _ping(self, host: str, count: int) -> dict[str, Any]:
@@ -104,8 +118,13 @@ class Doctor:
     def _port(self, host: str, port_number: int) -> dict[str, Any]:
         host = validate_host(host)
         port_number = validate_port(port_number)
-        self.limiter.acquire("check_port", host, port_number)
-        return port.check(host, port_number)
+        self.limiter.acquire("check_port")  # throttles the DNS lookup below too
+        try:
+            target = port.resolve(host, port_number)
+        except port.ResolveFailed:
+            return port.dns_failure(host, port_number)
+        self.limiter.acquire_port(target.ip, port_number)
+        return port.check(host, port_number, target)
 
 
 def _trace_program(os_name: str) -> str:

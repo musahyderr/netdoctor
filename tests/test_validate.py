@@ -20,6 +20,9 @@ from netdoctor.validate import (
         ("2606:4700:4700::1111", "2606:4700:4700::1111"),
         ("localhost", "localhost"),
         ("my-router", "my-router"),
+        ("2.pool.ntp.org", "2.pool.ntp.org"),
+        ("xn--bcher-kva.example", "xn--bcher-kva.example"),
+        ("::ffff:192.168.1.1", "192.168.1.1"),  # one spelling per machine
     ],
 )
 def test_accepts_single_hosts(host, expected):
@@ -60,6 +63,26 @@ def test_accepts_single_hosts(host, expected):
         "192.168.1.255",
         "[::1]",
         "example.com\nexample.org",
+        # numeric shorthand that resolvers read as IP addresses (security review)
+        "0xffffffff",
+        "0xe0000001",
+        "0x7f.0x1",
+        "0177.1.x",
+        "127.1.a",
+        "127.1",
+        "1e3",
+        "2130706433",
+        # IPv4-mapped broadcast / multicast
+        "::ffff:255.255.255.255",
+        "::ffff:224.0.0.1",
+        # IPv6 zone IDs
+        "fe80::1%eth0",
+        "fe80::1%-h",
+        "fe80::1%a\x0bb",
+        "fe80::1%a\x00b",
+        # non-ASCII look-alikes
+        "exаmple.com",  # Cyrillic 'а'
+        "example.com​",
     ],
 )
 def test_rejects_lists_ranges_flags_and_mass_addresses(host):
