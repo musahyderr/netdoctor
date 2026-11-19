@@ -1,0 +1,102 @@
+name: Release
+
+# Runs only when a version tag (v0.1.0, v0.2.0, ...) is pushed.
+# No stored secrets: PyPI and the MCP Registry both trust this workflow via OIDC.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Tag, pyproject.toml and server.json versions must match
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          py=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          pkg=$(python -c "import json;print(json.load(open('server.json'))['version'])")
+          pkg2=$(python -c "import json;print(json.load(open('server.json'))['packages'][0]['version'])")
+          echo "tag=$tag pyproject=$py server.json=$pkg/$pkg2"
+          test "$tag" = "$py" && test "$tag" = "$pkg" && test "$tag" = "$pkg2"
+      - name: Test
+        run: |
+          python -m pip install -e ".[test]"
+          python -m pytest -q
+      - name: Build
+        run: |
+          python -m pip install build twine
+          python -m build
+          python -m twine check --strict dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/netdoctor-mcp/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  mcp-registry:
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      MCP_PUBLISHER_VERSION: v1.8.9
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Wait until the new version is visible on PyPI
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          for i in $(seq 1 30); do
+            if curl -fsS "https://pypi.org/pypi/netdoctor-mcp/$v/json" > /dev/null; then exit 0; fi
+            sleep 10
+          done
+          echo "netdoctor-mcp $v did not appear on PyPI" && exit 1
+      - name: Install mcp-publisher (pinned)
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          ./mcp-publisher --help > /dev/null
+      - name: Publish to the MCP Registry
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
+
+  github-release:
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "netdoctor $GITHUB_REF_NAME" --generate-notes
